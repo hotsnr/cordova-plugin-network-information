@@ -23,6 +23,9 @@ var cordova = require('cordova');
 var channel = require('cordova/channel');
 var utils = require('cordova/utils');
 
+var timeout = 500;
+var timerId = null;
+
 // Link the onLine property with the Cordova-supplied network info.
 // This works because we clobber the navigator object with our own
 // object in bootstrap.js.
@@ -48,16 +51,9 @@ NetworkConnection.prototype.getInfo = function (successCallback, errorCallback) 
     exec(successCallback, errorCallback, 'NetworkStatus', 'getConnectionInfo', []);
 };
 
-var me = new NetworkConnection();
-var timerId = null;
-var timeout = 500;
-
-channel.createSticky('onCordovaConnectionReady');
-channel.waitForInitialization('onCordovaConnectionReady');
-
-channel.onCordovaReady.subscribe(function () {
-    me.getInfo(function (info) {
-        me.type = info;
+NetworkConnection.prototype.refresh = function (successCallback, errorCallback) {
+    this.getInfo(function (info) {
+        this.type = info;
         if (info === 'none') {
             // set a timer if still offline at the end of timer send the offline event
             timerId = setTimeout(function () {
@@ -74,18 +70,32 @@ channel.onCordovaReady.subscribe(function () {
         }
 
         // should only fire this once
-        if (channel.onCordovaConnectionReady.state !== 2) {
-            channel.onCordovaConnectionReady.fire();
-        }
+        successCallback();
     },
-    function (e) {
-        // If we can't get the network info we should still tell Cordova
-        // to fire the deviceready event.
-        if (channel.onCordovaConnectionReady.state !== 2) {
-            channel.onCordovaConnectionReady.fire();
-        }
-        console.log('Error initializing Network Connection: ' + e);
-    });
+    errorCallback);
+};
+
+var me = new NetworkConnection();
+
+channel.createSticky('onCordovaConnectionReady');
+channel.waitForInitialization('onCordovaConnectionReady');
+
+channel.onCordovaReady.subscribe(function () {
+    me.refresh(
+        function () {
+            // should only fire this once
+            if (channel.onCordovaConnectionReady.state !== 2) {
+                channel.onCordovaConnectionReady.fire();
+            }
+        },
+        function (e) {
+            // If we can't get the network info we should still tell Cordova
+            // to fire the deviceready event.
+            if (channel.onCordovaConnectionReady.state !== 2) {
+                channel.onCordovaConnectionReady.fire();
+            }
+            console.log('Error initializing Network Connection: ' + e);
+        });
 });
 
 module.exports = me;
