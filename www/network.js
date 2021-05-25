@@ -52,8 +52,9 @@ NetworkConnection.prototype.getInfo = function (successCallback, errorCallback) 
 };
 
 NetworkConnection.prototype.refresh = function (successCallback, errorCallback) {
+    let self = this;
     this.getInfo(function (info) {
-        this.type = info;
+        self.type = info;
         if (info === 'none') {
             // set a timer if still offline at the end of timer send the offline event
             timerId = setTimeout(function () {
